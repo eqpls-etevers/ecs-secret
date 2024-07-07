@@ -9,7 +9,8 @@ Equal Plus
 #===============================================================================
 from common import MeshControl
 
-from schema.sample.model import Blog, Message
+from schema.secret.certification import Authority, Server
+from schema.secret.access import OpenSsh
 
 
 #===============================================================================
@@ -21,8 +22,9 @@ class Control(MeshControl):
         MeshControl.__init__(self, api, config)
 
     async def startup(self):
-        await self.registerModel(Blog, 'uerp')
-        await self.registerModel(Message, 'uerp')
+        await self.registerModel(Authority, 'uerp')
+        await self.registerModel(Server, 'uerp')
+        await self.registerModel(OpenSsh, 'uerp')
 
     async def shutdown(self): pass
 
