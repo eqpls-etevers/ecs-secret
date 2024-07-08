@@ -7,6 +7,8 @@ Equal Plus
 #===============================================================================
 # Import
 #===============================================================================
+import json
+
 import random
 from OpenSSL import crypto
 from datetime import datetime
@@ -14,6 +16,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
+from stringcase import snakecase
 from typing import Annotated, Literal, List, Any
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, BackgroundTasks, Query
 from fastapi.responses import PlainTextResponse
@@ -30,13 +33,27 @@ from schema.secret.access import OpenSsh, OpenSsshRequest
 #===============================================================================
 config = getConfig('../module.ini')
 Logger.register(config)
-api = FastAPI(title=config['default']['title'], separate_input_output_schemas=False)
+rootPath = f"/{snakecase(config['default']['title'])}"
+api = FastAPI(
+    title=config['default']['title'],
+    separate_input_output_schemas=False,
+    docs_url=f'{rootPath}/docs',
+    openapi_url=f'{rootPath}/openapi.json'
+)
 ctrl = Control(api, config)
 
 
 #===============================================================================
 # API Interfaces
 #===============================================================================
+@api.get('/secret/test/http', tags=['Test'])
+async def test_http(request:Request):
+    LOG.INFO(json.dumps(request.cookies, indent=2))
+    return {
+        'result': 'OK'
+    }
+    
+
 @api.post('/secret/certification/authority', tags=['Certification'])
 async def create_ca_certification(req:AuthorityRequest) -> Authority:
     if not req.displayName: raise EpException(400, 'displayName is required')
