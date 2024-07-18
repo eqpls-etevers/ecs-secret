@@ -8,17 +8,15 @@ Equal Plus
 # Import
 #===============================================================================
 import random
+
 from OpenSSL import crypto
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from stringcase import snakecase
-from fastapi import FastAPI
 from fastapi.responses import PlainTextResponse
-# from fastapi.security import HTTPAuthorizationCredentials
 
-from common import getConfig, Logger, EpException, ID, AuthorizationHeader, RealmHeader
+from common import EpException, ID, AUTH_HEADER, ORG_HEADER
 
 from .controls import Control
 
@@ -28,26 +26,18 @@ from schema.secret.access import OpenSsh, OpenSsshRequest
 #===============================================================================
 # SingleTone
 #===============================================================================
-config = getConfig('../module.ini')
-Logger.register(config)
-rootPath = f"/{snakecase(config['default']['title'])}"
-api = FastAPI(
-    title=config['default']['title'],
-    separate_input_output_schemas=False,
-    docs_url=f'{rootPath}/docs',
-    openapi_url=f'{rootPath}/openapi.json'
-)
-ctrl = Control(api, config)
+ctrl = Control('../module.ini')
+api = ctrl.api
 
 
 #===============================================================================
 # API Interfaces
 #===============================================================================
-@api.post('/secret/certification/authority', tags=['Certification'])
+@api.post(f'{ctrl.uri}/certification/authority', tags=['Certification'])
 async def create_ca_certification(
-    req:AuthorityRequest,
-    token: AuthorizationHeader,
-    realm: RealmHeader=None
+    req: AuthorityRequest,
+    token: AUTH_HEADER,
+    org: ORG_HEADER=None
 ) -> Authority:
     if not req.displayName: raise EpException(400, 'displayName is required')
     if not req.csr.countryName: raise Exception('countryName is required')
@@ -93,34 +83,34 @@ async def create_ca_certification(
         csr=req.csr,
         key=crypto.dump_privatekey(crypto.FILETYPE_PEM, ca_key).decode('utf-8'),
         crt=crypto.dump_certificate(crypto.FILETYPE_PEM, ca_cert).decode('utf-8')
-    ).createModel(token=token, realm=realm)
+    ).createModel(token=token, org=org)
 
 
-@api.get('/secret/certification/authority/{id}/key', tags=['Certification'])
+@api.get(f'{ctrl.uri}/certification/authority/{{id}}/key', tags=['Certification'])
 async def download_ca_certification_key(
-    id:ID,
-    token: AuthorizationHeader,
-    realm: RealmHeader=None
+    id: ID,
+    token: AUTH_HEADER,
+    org: ORG_HEADER=None
 ) -> PlainTextResponse:
-    cert = await Authority.readModelByID(id, token=token, realm=realm)
+    cert = await Authority.readModelByID(id, token=token, org=org)
     return PlainTextResponse(cert.key)
 
 
-@api.get('/secret/certification/authority/{id}/crt', tags=['Certification'])
+@api.get(f'{ctrl.uri}/certification/authority/{{id}}/crt', tags=['Certification'])
 async def download_ca_certification_crt(
-    id:ID,
-    token: AuthorizationHeader,
-    realm: RealmHeader=None
+    id: ID,
+    token: AUTH_HEADER,
+    org: ORG_HEADER=None
 ) -> PlainTextResponse:
-    cert = await Authority.readModelByID(id, token=token, realm=realm)
+    cert = await Authority.readModelByID(id, token=token, org=org)
     return PlainTextResponse(cert.crt)
 
 
-@api.post('/secret/certification/server', tags=['Certification'])
+@api.post(f'{ctrl.uri}/certification/server', tags=['Certification'])
 async def create_server_certification(
-    req:ServerRequest,
-    token: AuthorizationHeader,
-    realm: RealmHeader=None
+    req: ServerRequest,
+    token: AUTH_HEADER,
+    org: ORG_HEADER=None
 ) -> Server:
     if not req.authorityId: raise EpException(400, 'authorityId is required')
     if not req.displayName: raise EpException(400, 'displayName is required')
@@ -178,34 +168,34 @@ async def create_server_certification(
         ca=caCert.getReference(),
         key=crypto.dump_privatekey(crypto.FILETYPE_PEM, server_key).decode('utf-8'),
         crt=crypto.dump_certificate(crypto.FILETYPE_PEM, server_cert).decode('utf-8')
-    ).createModel(token=token, realm=realm)
+    ).createModel(token=token, org=org)
 
 
-@api.get('/secret/certification/server/{id}/key', tags=['Certification'])
+@api.get(f'{ctrl.uri}/certification/server/{{id}}/key', tags=['Certification'])
 async def download_server_certification_key(
-    id:ID,
-    token: AuthorizationHeader,
-    realm: RealmHeader=None
+    id: ID,
+    token: AUTH_HEADER,
+    org: ORG_HEADER=None
 ) -> PlainTextResponse:
-    cert = await Authority.readModelByID(id, token=token, realm=realm)
+    cert = await Authority.readModelByID(id, token=token, org=org)
     return PlainTextResponse(cert.key)
 
 
-@api.get('/secret/certification/server/{id}/crt', tags=['Certification'])
+@api.get(f'{ctrl.uri}/certification/server/{{id}}/crt', tags=['Certification'])
 async def download_server_certification_crt(
-    id:ID,
-    token: AuthorizationHeader,
-    realm: RealmHeader=None
+    id: ID,
+    token: AUTH_HEADER,
+    org: ORG_HEADER=None
 ) -> PlainTextResponse:
-    cert = await Authority.readModelByID(id, token=token, realm=realm)
+    cert = await Authority.readModelByID(id, token=token, org=org)
     return PlainTextResponse(cert.crt)
 
 
-@api.post('/secret/access/openssh', tags=['Remote Access'])
+@api.post(f'{ctrl.uri}/access/openssh', tags=['Remote Access'])
 async def create_rsa(
-    req:OpenSsshRequest,
-    token: AuthorizationHeader,
-    realm: RealmHeader=None
+    req: OpenSsshRequest,
+    token: AUTH_HEADER,
+    org: ORG_HEADER=None
 ) -> OpenSsh:
     if not req.displayName: raise EpException(400, 'displayName is required')
     if not req.rsaBits: req.rsaBits = 4096
@@ -229,24 +219,24 @@ async def create_rsa(
             encoding=serialization.Encoding.OpenSSH,
             format=serialization.PublicFormat.OpenSSH
         ).decode('utf-8')
-    ).createModel(token=token, realm=realm)
+    ).createModel(token=token, org=org)
 
 
-@api.get('/secret/access/openssh/{id}/privatekey', tags=['Remote Access'])
+@api.get(f'{ctrl.uri}/access/openssh/{{id}}/privatekey', tags=['Remote Access'])
 async def download_openssh_private_crt(
-    id:ID,
-    token: AuthorizationHeader,
-    realm: RealmHeader=None
+    id: ID,
+    token: AUTH_HEADER,
+    org: ORG_HEADER=None
 ) -> PlainTextResponse:
-    keys = await OpenSsh.readModelByID(id, token=token, realm=realm)
+    keys = await OpenSsh.readModelByID(id, token=token, org=org)
     return PlainTextResponse(keys.pri)
 
 
-@api.get('/secret/access/openssh/{id}/publickey', tags=['Remote Access'])
+@api.get(f'{ctrl.uri}/access/openssh/{{id}}/publickey', tags=['Remote Access'])
 async def download_openssh_public_key(
-    id:ID,
-    token: AuthorizationHeader,
-    realm: RealmHeader=None
+    id: ID,
+    token: AUTH_HEADER,
+    org: ORG_HEADER=None
 ) -> PlainTextResponse:
-    keys = await OpenSsh.readModelByID(id, token=token, realm=realm)
+    keys = await OpenSsh.readModelByID(id, token=token, org=org)
     return PlainTextResponse(keys.pub)
